@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Users collection
+    // Public read so friends can search each other by username and view profiles/online status
+    // Only the user can create or update their own profile & online status
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+
+    // 2. Friend Requests collection
+    // Any authenticated user can send/accept/update friend requests
+    match /friendRequests/{requestId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 3. Friends collection & friendList subcollection
+    match /friends/{userId} {
+      allow read, write: if isAuthenticated();
+      match /friendList/{friendId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // 4. Conversations & Messages
+    // Authenticated users can chat, send messages, read messages, and update conversations
+    match /conversations/{conversationId} {
+      allow read, write: if isAuthenticated();
+
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Typing status indicator
+      match /typing/{userId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+  }
+}
